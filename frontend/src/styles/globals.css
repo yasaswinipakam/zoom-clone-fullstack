@@ -1,0 +1,111 @@
+/**
+ * styles/globals.css — global foundation styles + CSS token system.
+ *
+ * Implementation Plan §11: "Colors (token system, defined once in
+ * styles/tokens.css as CSS custom properties, consumed by Tailwind config)."
+ *
+ * Tailwind v4 is initialised here via @import "tailwindcss".
+ * All CSS custom properties (design tokens) are defined here so they are
+ * available to both the light dashboard theme and the dark meeting-room
+ * theme from a single definition point — never duplicated per-page.
+ *
+ * Constitution §9.1: arbitrary Tailwind values ([...]) are forbidden in
+ * feature components; tokens defined here give them named alternatives.
+ */
+
+@import "tailwindcss";
+
+/* ==========================================================================
+   Design tokens — CSS custom properties
+   ========================================================================== */
+
+:root {
+  /* --- Primary --- */
+  --color-primary: #2d8cff;       /* Zoom-like blue — primary actions, links  */
+  --color-primary-hover: #1a7ae8;
+
+  /* --- Surfaces --- */
+  --color-surface: #ffffff;           /* Dashboard / light background            */
+  --color-surface-secondary: #f7f8fa; /* Subtle alternate surface (card bg etc.) */
+  --color-surface-dark: #1c1c1e;          /* Meeting-room near-black background      */
+  --color-surface-dark-secondary: #2c2c2e;
+
+  /* --- Semantic --- */
+  --color-danger: #e3371e;    /* Leave / end / remove actions             */
+  --color-danger-hover: #c62d17;
+  --color-success: #2eb82e;   /* CONNECTED / ACTIVE status indicators     */
+  --color-warning: #f5a623;   /* DISCONNECTED / reconnecting indicators   */
+
+  /* --- Neutral scale (both themes pull from these) --- */
+  --color-border: #e5e7eb;
+  --color-border-dark: #3a3a3c;
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+  --color-text-primary-dark: #f2f2f7;
+  --color-text-secondary-dark: #aeaeb2;
+
+  /* --- Spacing base unit: 4 px — see Implementation Plan §11 --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* --- Typography scale --- */
+  --font-family-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 32px;
+}
+
+/* ==========================================================================
+   Base resets
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================================================
+   Focus management — Constitution §4.5, §12.1
+   Every interactive element must have a visible focus state.
+   ========================================================================== */
+
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ==========================================================================
+   Reduced motion — Constitution §12.5
+   Respected at the token level so every animation inherits it automatically.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
