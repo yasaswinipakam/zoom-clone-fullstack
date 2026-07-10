@@ -49,3 +49,23 @@ class InvalidMeetingScheduleError(ValidationError):
     """Raised when scheduling fields violate business rules (e.g. a
     scheduled time that is no longer in the future by the time the
     service layer processes it)."""
+
+
+# ---------------------------------------------------------------------------
+# Participant domain exceptions (Task 4)
+# ---------------------------------------------------------------------------
+
+
+class ParticipantNotFoundError(NotFoundError):
+    """Raised when a participant cannot be found by ID."""
+
+
+class DuplicateParticipantError(ConflictError):
+    """Raised when a participant with the same display name is already
+    active in the meeting (prevent duplicate join)."""
+
+
+class MeetingNotJoinableError(ConflictError):
+    """Raised when a participant attempts to join a meeting that has
+    already ended (``MeetingStatus.ENDED``)."""
+

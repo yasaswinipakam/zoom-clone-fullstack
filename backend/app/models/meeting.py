@@ -6,13 +6,19 @@ per Constitution Section 6.1. This module owns table structure alone —
 no business logic, no query methods (Constitution Section 2.2).
 """
 
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Enum, ForeignKey, Index, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import MeetingStatus, MeetingType
+
+if TYPE_CHECKING:
+    from app.models.participant import Participant
 
 
 class Meeting(Base):
@@ -96,4 +102,15 @@ class Meeting(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationship — back_populates counterpart lives on Participant.meeting
+    # (Constitution Section 6.2). cascade="all, delete-orphan" matches the
+    # ON DELETE CASCADE FK on participants.meeting_id (EDD Section 5.4) and
+    # satisfies EDD Section 14.5 (cascading deletes must be explicit).
+    participants: Mapped[list[Participant]] = relationship(
+        "Participant",
+        back_populates="meeting",
+        cascade="all, delete-orphan",
+        lazy="select",
     )

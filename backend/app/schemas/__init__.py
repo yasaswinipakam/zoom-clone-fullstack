@@ -1,7 +1,8 @@
 """Pydantic request/response contracts.
 
-Milestone 2 introduces the Meeting domain's schemas, re-exported here
-for a single, stable import surface (Constitution Section 3.2).
+Milestones 2 and 4 introduce the Meeting and Participant domain schemas,
+re-exported here for a single, stable import surface (Constitution
+Section 3.2).
 """
 
 from app.schemas.meeting import (
@@ -11,6 +12,13 @@ from app.schemas.meeting import (
     MeetingResponse,
     MeetingUpdate,
 )
+from app.schemas.participant import (
+    ParticipantBase,
+    ParticipantCreate,
+    ParticipantListResponse,
+    ParticipantResponse,
+    ParticipantUpdate,
+)
 
 __all__ = [
     "MeetingBase",
@@ -18,4 +26,9 @@ __all__ = [
     "MeetingListResponse",
     "MeetingResponse",
     "MeetingUpdate",
+    "ParticipantBase",
+    "ParticipantCreate",
+    "ParticipantListResponse",
+    "ParticipantResponse",
+    "ParticipantUpdate",
 ]
