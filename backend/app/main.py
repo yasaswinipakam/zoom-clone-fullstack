@@ -62,12 +62,59 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title=settings.app_name,
+    title="Zoom Clone API",
     version=settings.app_version,
     description=(
-        "Backend API for a Zoom-style video conferencing platform "
-        "(SDE Fullstack Assignment)."
+        "# Zoom Clone — Backend API\n\n"
+        "REST API for a Zoom-style video conferencing platform "
+        "(SDE Fullstack Assignment).\n\n"
+        "## Features\n"
+        "- **Meeting management** — create, retrieve, update, delete instant "
+        "and scheduled meetings\n"
+        "- **Meeting lifecycle** — start (`SCHEDULED → ACTIVE`) and end "
+        "(`ACTIVE → ENDED`) meetings with automatic timestamp recording\n"
+        "- **Participant management** — join, list, and remove participants; "
+        "voluntary leave with soft-remove history\n"
+        "- **Guest support** — participants are decoupled from the User table "
+        "so anyone with a meeting code can join without an account\n\n"
+        "## Notes\n"
+        "- All timestamps are **UTC ISO 8601**.\n"
+        "- All routes are prefixed `/api/v1/`.\n"
+        "- Authentication is out of scope for this assignment milestone.\n"
+        "- `host_id` is accepted as a request body field in lieu of a "
+        "current-user dependency (deferred to a future milestone).\n"
     ),
+    contact={
+        "name": "Engineering",
+        "email": "engineering@example.com",
+    },
+    license_info={
+        "name": "Private — Assignment Submission",
+    },
+    openapi_tags=[
+        {
+            "name": "Meetings",
+            "description": (
+                "Create, retrieve, update, and delete meetings. "
+                "Includes lifecycle transitions (start / end) and "
+                "status polling."
+            ),
+        },
+        {
+            "name": "Participants",
+            "description": (
+                "Join a meeting, list participants, voluntarily leave, "
+                "or hard-remove a participant."
+            ),
+        },
+        {
+            "name": "Infrastructure",
+            "description": (
+                "Operational endpoints: liveness check with optional "
+                "database connectivity probe."
+            ),
+        },
+    ],
     lifespan=lifespan,
 )
 
@@ -217,18 +264,84 @@ app.include_router(participant_router, prefix=API_V1_PREFIX)
 
 # --- Health endpoint -------------------------------------------------------
 # Defined inline (not in routers/) since it is infrastructure-level,
-# not a domain resource, and no router package exists for it.
-@app.get("/health", tags=["Infrastructure"], summary="Liveness check")
+# not a domain resource. Includes an optional database probe so
+# operators can distinguish a healthy process from one that has lost
+# its DB connection — without raising an error (load-balancers should
+# always get a response from /health).
+@app.get(
+    "/health",
+    tags=["Infrastructure"],
+    summary="Liveness and readiness check",
+    description=(
+        "Report the application's current health.\n\n"
+        "- `status` is always `healthy` if the process is running.\n"
+        "- `db_status` is `ok` if a test query (`SELECT 1`) succeeds, "
+        "or `degraded` if the database is unreachable.\n"
+        "- `environment` reflects the `ENVIRONMENT` config variable.\n"
+        "- `version` is the running build version.\n\n"
+        "This endpoint never returns a non-2xx status — it is designed "
+        "for load-balancer liveness probes that need a response even when "
+        "the database is down."
+    ),
+    responses={
+        200: {
+            "description": "Application is running.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "healthy": {
+                            "summary": "Fully healthy",
+                            "value": {
+                                "status": "healthy",
+                                "service": "zoom-clone-backend",
+                                "version": "0.1.0",
+                                "environment": "local",
+                                "db_status": "ok",
+                            },
+                        },
+                        "degraded": {
+                            "summary": "DB unreachable",
+                            "value": {
+                                "status": "healthy",
+                                "service": "zoom-clone-backend",
+                                "version": "0.1.0",
+                                "environment": "local",
+                                "db_status": "degraded",
+                            },
+                        },
+                    }
+                }
+            },
+        }
+    },
+)
 def health_check() -> dict[str, str]:
-    """Report that the application process is up and serving requests.
+    """Report liveness and optionally database readiness.
 
     Returns:
-        A JSON payload identifying the service, its status, and version
-        — enough for a load balancer or engineer to confirm both that
-        the process is alive and which build is running.
+        A JSON payload with ``status``, ``service``, ``version``,
+        ``environment``, and ``db_status``.  ``db_status`` is ``ok``
+        when a lightweight ``SELECT 1`` query succeeds, otherwise
+        ``degraded``.  The HTTP status is always ``200`` so
+        load-balancer probes always receive a response.
     """
+    from sqlalchemy import text
+
+    from app.db.session import SessionLocal
+
+    db_status = "degraded"
+    try:
+        with SessionLocal() as probe:
+            probe.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:  # noqa: BLE001
+        logger.warning("Health check: database probe failed")
+
     return {
         "status": "healthy",
         "service": SERVICE_NAME,
         "version": settings.app_version,
+        "environment": settings.environment,
+        "db_status": db_status,
     }
+
