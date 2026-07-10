@@ -1,23 +1,24 @@
-"""Fixed value sets for the Meeting domain.
+"""Fixed value sets for the Meeting and Participant domains.
 
 Per Constitution Section 4.8, fixed value sets are represented as
 `enum.Enum` (here `StrEnum`, per the Python 3.12 language-version rule
 in Section 4.1) rather than raw strings scattered through the code.
 
 Placement note: these enums are intentionally colocated with the model
-layer (they back the `Enum(...)` column types on `Meeting`, per the
-Section 6.1 example) but are also consumed by `app.schemas.meeting` for
-request/response validation. Constitution Section 3.4 forbids
-`schemas/` from importing `models/` in the general case — that rule
-exists to stop API contracts from leaking ORM structure (relationships,
-lazy-loaded attributes, table metadata). A `StrEnum` carries none of
-that: it is a closed set of string values with no persistence behavior,
-identical in shape whether it lives in `models/` or `schemas/`. Sharing
-one definition here avoids two independently-maintained copies of the
-same domain vocabulary drifting apart, which is a larger maintainability
-risk (Section 1.2, "Maintainability") than the narrow, documented import
-this requires. This is a deliberate, minimal exception, not a silent
-reinterpretation of Section 3.4 — flagged here per Section 23 Rule 20.
+layer (they back the `Enum(...)` column types on `Meeting` and
+`Participant`, per the Section 6.1 example) but are also consumed by
+`app.schemas.meeting` and `app.schemas.participant` for request/response
+validation. Constitution Section 3.4 forbids `schemas/` from importing
+`models/` in the general case — that rule exists to stop API contracts
+from leaking ORM structure (relationships, lazy-loaded attributes, table
+metadata). A `StrEnum` carries none of that: it is a closed set of
+string values with no persistence behavior, identical in shape whether
+it lives in `models/` or `schemas/`. Sharing one definition here avoids
+two independently-maintained copies of the same domain vocabulary
+drifting apart, which is a larger maintainability risk (Section 1.2,
+"Maintainability") than the narrow, documented import this requires.
+This is a deliberate, minimal exception, not a silent reinterpretation
+of Section 3.4 — flagged here per Section 23 Rule 20.
 """
 
 from enum import StrEnum
@@ -46,3 +47,18 @@ class MeetingStatus(StrEnum):
     SCHEDULED = "SCHEDULED"
     ACTIVE = "ACTIVE"
     ENDED = "ENDED"
+
+
+class ParticipantStatus(StrEnum):
+    """Connection state of a participant within a meeting.
+
+    Tracks whether a participant is currently in the call, has
+    temporarily disconnected, or has left. This is intentionally
+    separate from the meeting's own ``MeetingStatus`` lifecycle because
+    participant connection state changes independently: a participant
+    can leave and rejoin while the meeting remains ``ACTIVE``.
+    """
+
+    CONNECTED = "CONNECTED"
+    DISCONNECTED = "DISCONNECTED"
+    LEFT = "LEFT"
