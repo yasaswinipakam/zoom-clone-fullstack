@@ -1,34 +1,27 @@
-# --- Python ---
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.eggs/
-
-# --- Virtual environments ---
+# Environments
+.env
 .venv/
 venv/
 env/
 
-# --- Environment variables ---
-.env
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
 
-# --- Database ---
+# Database (the data/ directory itself is tracked via data/.gitkeep;
+# only the actual SQLite file(s) inside it are ignored)
+data/*.db
+data/*.sqlite3
 *.db
-*.sqlite
 *.sqlite3
 
-# --- Alembic (future migrations) ---
-# Migration scripts themselves are tracked; local SQLite artifacts are not.
-
-# --- Tooling caches ---
-.ruff_cache/
-.mypy_cache/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# --- Editors / OS ---
+# Editors / OS
 .vscode/
 .idea/
 .DS_Store
+
+# Logs
+*.log

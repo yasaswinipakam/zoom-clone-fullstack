@@ -1,79 +1,119 @@
 # Zoom Clone — Backend
 
-## Project Overview
+Backend API for the Zoom-style video conferencing platform (SDE Fullstack
+Assignment). This repository's engineering rules are governed by the
+**Backend Engineering Constitution**; feature scope is governed by the
+**Assignment Specification** and the **Engineering Design Document**.
 
-FastAPI backend for the Zoom Clone SDE Fullstack Assignment. This backend
-serves as the API layer for a Next.js frontend, providing instant meeting
-creation, scheduled meetings, and participant management. This README
-reflects **Sprint 1 (project initialization) only** — the layered
-architecture (models, schemas, repositories, services, routers) will be
-added in subsequent sprints per the Backend Engineering Constitution and
-the Engineering Design Document.
+> **Milestone 1 status:** infrastructure only. No models, schemas,
+> repositories, services, routers, or business logic exist yet. The only
+> live endpoint is `/health`.
 
-## Technology Stack
+## Tech Stack
 
-- **Language:** Python 3.12
-- **Framework:** FastAPI
-- **ORM:** SQLAlchemy (planned, not yet wired up)
-- **Migrations:** Alembic (planned, not yet wired up)
-- **Validation/Settings:** Pydantic / pydantic-settings (planned)
-- **Database:** SQLite
-- **Formatting/Linting:** black, ruff
+- **Framework:** FastAPI (Python 3.12)
+- **ORM:** SQLAlchemy 2.0 (2.0-style `Mapped[...]` / `mapped_column(...)`)
+- **Migrations:** Alembic
+- **Database:** SQLite (`app/db/session.py` abstracts the connection so a
+  future move to PostgreSQL is a one-line config change)
+- **Validation/Config:** Pydantic v2 / `pydantic-settings`
+- **Server:** Uvicorn
 
-## Folder Structure
+## Project Structure
 
 ```
 backend/
 ├── app/
-│   ├── __init__.py
-│   └── main.py            # FastAPI app instance, health endpoint,
-│                           # registration placeholders
-├── requirements.txt        # Pinned Python dependencies
-├── pyproject.toml          # Project metadata + black/ruff config
-├── .gitignore
-├── .env.example            # Documented environment variables
+│   ├── main.py              # FastAPI app: metadata, middleware, exception
+│   │                         # handlers, router mounting, lifecycle, /health
+│   ├── dependencies.py      # Central DI providers (DB session for now)
+│   ├── core/
+│   │   ├── config.py        # Settings (Pydantic BaseSettings) — canonical
+│   │   ├── settings.py      # Thin re-export of config.py's settings
+│   │   ├── constants.py     # Fixed, non-env constants
+│   │   ├── logging_config.py# Logging setup (stdlib dictConfig)
+│   │   ├── logger.py        # get_logger(name) helper
+│   │   └── middleware.py    # Correlation ID + request logging/timing
+│   ├── db/
+│   │   ├── engine.py        # SQLAlchemy engine
+│   │   ├── base.py          # Declarative Base for future ORM models
+│   │   ├── session.py       # SessionLocal + get_db() dependency
+│   │   ├── database.py      # Re-export aggregator of the three above
+│   │   └── migrations/      # Alembic env (no migrations yet)
+│   ├── models/               # Empty — ORM models (next milestone)
+│   ├── schemas/               # Empty — Pydantic contracts (next milestone)
+│   ├── repositories/          # Empty — data access (next milestone)
+│   ├── services/               # Empty — business logic (next milestone)
+│   ├── routers/                 # Empty — HTTP routes (next milestone)
+│   └── utils/                    # Empty — pure helpers (next milestone)
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── alembic.ini
+├── requirements.txt
+├── pyproject.toml
+├── .env.example
 └── README.md
 ```
 
-## Development Setup
+## Setup Instructions
 
-1. Ensure Python 3.12 is installed.
-2. Create and activate a virtual environment:
-   ```
+1. **Create and activate a virtual environment**
+   ```bash
    python3.12 -m venv .venv
    source .venv/bin/activate
    ```
-3. Copy the environment template:
+
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
    ```
+
+3. **Configure environment variables**
+   ```bash
    cp .env.example .env
    ```
+   The defaults work out of the box for local development (SQLite file
+   in the project root).
 
-## Installation
+4. **Verify the Alembic connection** (no migrations exist yet in
+   Milestone 1 — this only confirms the DB connection resolves)
+   ```bash
+   alembic current
+   ```
 
-Install dependencies from `requirements.txt`:
+5. **Run the server**
+   ```bash
+   uvicorn app.main:app --reload
+   ```
 
-```
-pip install -r requirements.txt
-```
+6. **Verify it's alive**
+   ```bash
+   curl http://127.0.0.1:8000/health
+   # {"status": "ok", "version": "0.1.0"}
+   ```
+   Interactive API docs: http://127.0.0.1:8000/docs
 
-## Run Instructions
+## Assumptions (Milestone 1)
 
-Start the development server from the `backend/` directory:
+- No authentication exists yet, per the Assignment Specification's
+  "No Login Required" note — a default user will be seeded in a later
+  milestone once `models/user.py` exists.
+- No domain models, business rules, or endpoints beyond `/health` are
+  included in this milestone by design — see the Backend Engineering
+  Constitution, Section 23, Rule 17 ("generate one feature at a time").
+- `core/exceptions.py` is deliberately not yet created; only
+  framework-level exception handlers (validation errors, unhandled
+  exceptions) are registered in `main.py`. Domain exception classes are
+  added alongside the first feature that needs them.
 
-```
-uvicorn app.main:app --reload
-```
+## API Overview
 
-- API root: `http://localhost:8000`
-- Interactive docs (Swagger UI): `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/health`
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Liveness check |
+| GET | `/docs` | Swagger UI |
+| GET | `/redoc` | ReDoc UI |
 
-## Development Workflow
-
-1. Format code before committing: `black .`
-2. Lint code before committing: `ruff check .`
-3. Follow the layered architecture defined in the Backend Engineering
-   Constitution (Router → Service → Repository → Model) as each feature
-   is implemented in later sprints.
-4. Each sprint is implemented and verified independently; do not
-   anticipate or scaffold future sprints ahead of schedule.
+Future resource routers will be mounted under `/api/v1` (see
+`app/core/constants.py::API_V1_PREFIX`), per Constitution Section 5.8.

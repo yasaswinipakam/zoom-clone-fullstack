@@ -1,21 +1,7 @@
-# Zoom Clone Backend — Dependencies
-# This file is the single source of truth for installable packages.
-# pyproject.toml only holds project metadata and tool configuration
-# (black/ruff) to avoid maintaining the dependency list in two places.
-
-# --- Web framework ---
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-
-# --- Database / ORM / migrations ---
-sqlalchemy==2.0.36
-alembic==1.14.0
-
-# --- Settings & validation ---
 pydantic==2.10.4
-pydantic-settings==2.7.0
+pydantic-settings==2.7.1
+SQLAlchemy==2.0.36
+alembic==1.14.0
 python-dotenv==1.0.1
-
-# --- Dev tooling (formatting & linting per Backend Engineering Constitution) ---
-black==24.10.0
-ruff==0.8.4
