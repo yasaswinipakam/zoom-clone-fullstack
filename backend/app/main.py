@@ -21,7 +21,7 @@ from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.logger import get_logger
 from app.core.logging_config import configure_logging
 from app.core.middleware import RequestContextMiddleware
-from app.routers import meeting_router
+from app.routers import meeting_router, participant_router
 
 # Configured at import time — before the module-level `logger` below is
 # even created, and before FastAPI or any other module in this process
@@ -212,6 +212,7 @@ async def handle_domain_validation_error(
 # Section 11.2, they handle domain exceptions centrally so routers
 # remain free of try/except blocks.
 app.include_router(meeting_router, prefix=API_V1_PREFIX)
+app.include_router(participant_router, prefix=API_V1_PREFIX)
 
 
 # --- Health endpoint -------------------------------------------------------

@@ -209,3 +209,127 @@ class ParticipantService:
             participant.id,
             participant.display_name,
         )
+
+    # -----------------------------------------------------------------------
+    # Code-based entry points (Task 5 — Participant API layer)
+    # -----------------------------------------------------------------------
+    # The Participant API routes all use ``meeting_code`` in the URL (EDD
+    # §6.6).  The existing methods above use ``meeting_id`` (int) because
+    # the service layer works against primary keys internally.  These two
+    # thin wrappers resolve the code once, then delegate to the id-based
+    # methods — keeping all business logic in one place (DRY) and keeping
+    # the router free of any resolution logic (Constitution §10.2).
+
+    def join_meeting(
+        self, meeting_code: str, display_name: str, is_host: bool = False
+    ) -> Participant:
+        """Join a meeting identified by its public code.
+
+        Resolves the meeting code to an internal ID, then delegates to
+        ``add_participant`` for the full suite of business-rule checks.
+
+        Args:
+            meeting_code: The unique, human-shareable meeting code from
+                the URL path.
+            display_name: The name the participant will appear as in the
+                grid (1–100 characters).
+            is_host: Whether this participant is the meeting host.
+                Defaults to ``False`` for guest joins.
+
+        Returns:
+            The newly created ``Participant``.
+
+        Raises:
+            MeetingNotFoundError: If no meeting has this code.
+            MeetingNotJoinableError: If the meeting has already ended.
+            DuplicateParticipantError: If a participant with this display
+                name is already active in the meeting.
+        """
+        meeting = self.meeting_repo.get_by_code(meeting_code)
+        if meeting is None:
+            raise MeetingNotFoundError(
+                f"Meeting with code {meeting_code} was not found."
+            )
+        payload = ParticipantCreate(
+            meeting_id=meeting.id,
+            display_name=display_name,
+            is_host=is_host,
+        )
+        return self.add_participant(payload)
+
+    def list_by_meeting_code(
+        self,
+        meeting_code: str,
+        status: ParticipantStatus | None = None,
+    ) -> list[Participant]:
+        """List participants for a meeting identified by its public code.
+
+        Resolves the meeting code to an internal ID, then delegates to
+        ``list_participants``.
+
+        Args:
+            meeting_code: The unique, human-shareable meeting code from
+                the URL path.
+            status: If provided, restrict results to this connection state.
+
+        Returns:
+            Participants ordered by ``joined_at`` ascending.
+
+        Raises:
+            MeetingNotFoundError: If no meeting has this code.
+        """
+        meeting = self.meeting_repo.get_by_code(meeting_code)
+        if meeting is None:
+            raise MeetingNotFoundError(
+                f"Meeting with code {meeting_code} was not found."
+            )
+        return self.list_participants(meeting.id, status=status)
+
+    def leave_meeting_participant(self, participant_id: int) -> Participant:
+        """Soft-remove a participant and return the updated record.
+
+        Identical to ``remove_participant`` but returns the mutated
+        ``Participant`` so the `/leave` route can produce a
+        ``ParticipantResponse`` body (the caller expects ``200 OK``
+        with the updated state, not ``204 No Content``).
+
+        Args:
+            participant_id: The participant's surrogate integer primary key.
+
+        Returns:
+            The updated ``Participant`` with ``participant_status=LEFT``
+            and ``left_at`` set.
+
+        Raises:
+            ParticipantNotFoundError: If no participant has this ID.
+        """
+        self.remove_participant(participant_id)
+        return self.get_participant_by_id(participant_id)
+
+    def hard_delete_participant(self, participant_id: int) -> None:
+        """Permanently delete a participant row.
+
+        Hard-deletes the row (no soft-remove), preserving no history.
+        Used for administrative removal by a host.  Contrast with
+        ``remove_participant``, which soft-deletes by setting
+        ``participant_status = LEFT`` and recording ``left_at``.
+
+        Transaction note: commit is issued through ``meeting_repo.db``
+        rather than ``participant_repo.db``.  Both are bound to the
+        same request-scoped ``Session`` (see ``get_participant_service``
+        in ``app.dependencies``), so the effect is identical.  Using
+        the meeting-repo session here follows the same pattern as
+        ``MeetingService.delete_meeting_by_id``, which also commits
+        through its single injected repository — keeping session access
+        off the participant-repo interface in this service method.
+
+        Args:
+            participant_id: The participant's surrogate integer primary key.
+
+        Raises:
+            ParticipantNotFoundError: If no participant has this ID.
+        """
+        participant = self.get_participant_by_id(participant_id)
+        self.participant_repo.delete(participant)
+        logger.info("Participant hard-deleted: id=%s", participant_id)
+        self.meeting_repo.db.commit()
