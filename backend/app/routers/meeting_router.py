@@ -18,10 +18,12 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.core.constants import API_V1_PREFIX
 from app.dependencies import get_db_session, get_meeting_service
+from app.models.enums import MeetingStatus
 from app.schemas.meeting import (
     MeetingCreate,
     MeetingListResponse,
     MeetingResponse,
+    MeetingStatusResponse,
     MeetingUpdate,
 )
 from app.services.meeting_service import MeetingService
@@ -265,6 +267,330 @@ def list_recent_meetings(
         items=[MeetingResponse.model_validate(m) for m in meetings],
         total=len(meetings),
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /meetings/{meeting_code}/start — Start Meeting
+# ---------------------------------------------------------------------------
+# Registered before /{meeting_id} for explicit ordering clarity.
+# `meeting_code` is a string so it cannot clash with the int-typed
+# `meeting_id` parameter, but explicit order documents intent.
+
+
+@router.post(
+    "/{meeting_code}/start",
+    response_model=MeetingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Start a scheduled meeting",
+    description=(
+        "Transition a meeting from `SCHEDULED` to `ACTIVE` status, "
+        "setting `started_at` to the current UTC time.\n\n"
+        "**Valid only when:** the meeting is in `SCHEDULED` status.\n\n"
+        "**Rejected when:**\n"
+        "- Meeting is already `ACTIVE` (duplicate start).\n"
+        "- Meeting is `ENDED` (cannot restart an ended meeting).\n\n"
+        "Instant meetings (`meeting_type = INSTANT`) are created "
+        "directly in `ACTIVE` status and cannot use this endpoint — "
+        "only scheduled meetings need an explicit start."
+    ),
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Meeting started successfully.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 1,
+                        "meeting_code": "847-2910-556",
+                        "title": "Q3 Planning",
+                        "description": "Sprint planning for Q3.",
+                        "meeting_type": "SCHEDULED",
+                        "status": "ACTIVE",
+                        "host_id": 1,
+                        "scheduled_at": "2026-08-01T14:00:00Z",
+                        "duration_minutes": 60,
+                        "started_at": "2026-08-01T14:02:00Z",
+                        "ended_at": None,
+                        "created_at": "2026-07-11T00:00:00Z",
+                        "updated_at": "2026-08-01T14:02:00Z",
+                    }
+                }
+            },
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "No meeting exists with this code.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "not_found",
+                        "message": "Meeting with code 847-2910-556 was not found.",
+                    }
+                }
+            },
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "Transition rejected — meeting is not in `SCHEDULED` "
+                "status (already active or ended)."
+            ),
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "already_active": {
+                            "summary": "Already active",
+                            "value": {
+                                "error": "conflict",
+                                "message": (
+                                    "Cannot transition meeting 847-2910-556 "
+                                    "from ACTIVE to ACTIVE."
+                                ),
+                            },
+                        },
+                        "already_ended": {
+                            "summary": "Already ended",
+                            "value": {
+                                "error": "conflict",
+                                "message": (
+                                    "Cannot transition meeting 847-2910-556 "
+                                    "from ENDED to ACTIVE."
+                                ),
+                            },
+                        },
+                    }
+                }
+            },
+        },
+    },
+)
+def start_meeting(
+    meeting_code: str,
+    service: MeetingService = Depends(get_meeting_service),
+) -> MeetingResponse:
+    """Start a scheduled meeting.
+
+    Args:
+        meeting_code: The meeting's unique, public identifier from the
+            URL path.
+        service: Injected ``MeetingService`` instance.
+
+    Returns:
+        The updated ``MeetingResponse`` with ``status=ACTIVE`` and
+        ``started_at`` set.
+
+    Raises:
+        MeetingNotFoundError: Propagated from the service; translated to
+            ``404`` by the global exception handler.
+        InvalidMeetingStatusTransitionError: Propagated from the service;
+            translated to ``409`` by the global exception handler.
+    """
+    meeting = service.transition_status(meeting_code, MeetingStatus.ACTIVE)
+    return MeetingResponse.model_validate(meeting)
+
+
+# ---------------------------------------------------------------------------
+# POST /meetings/{meeting_code}/end — End Meeting
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{meeting_code}/end",
+    response_model=MeetingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="End an active meeting",
+    description=(
+        "Transition a meeting from `ACTIVE` to `ENDED` status, "
+        "setting `ended_at` to the current UTC time.\n\n"
+        "**Valid only when:** the meeting is in `ACTIVE` status.\n\n"
+        "**Rejected when:**\n"
+        "- Meeting is `SCHEDULED` (must start before ending).\n"
+        "- Meeting is already `ENDED` (duplicate end).\n\n"
+        "Once ended, a meeting cannot be restarted."
+    ),
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Meeting ended successfully.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 1,
+                        "meeting_code": "847-2910-556",
+                        "title": "Q3 Planning",
+                        "description": "Sprint planning for Q3.",
+                        "meeting_type": "SCHEDULED",
+                        "status": "ENDED",
+                        "host_id": 1,
+                        "scheduled_at": "2026-08-01T14:00:00Z",
+                        "duration_minutes": 60,
+                        "started_at": "2026-08-01T14:02:00Z",
+                        "ended_at": "2026-08-01T15:05:00Z",
+                        "created_at": "2026-07-11T00:00:00Z",
+                        "updated_at": "2026-08-01T15:05:00Z",
+                    }
+                }
+            },
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "No meeting exists with this code.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "not_found",
+                        "message": "Meeting with code 847-2910-556 was not found.",
+                    }
+                }
+            },
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "Transition rejected — meeting is not in `ACTIVE` "
+                "status (still scheduled or already ended)."
+            ),
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "not_started": {
+                            "summary": "Meeting not yet started",
+                            "value": {
+                                "error": "conflict",
+                                "message": (
+                                    "Cannot transition meeting 847-2910-556 "
+                                    "from SCHEDULED to ENDED."
+                                ),
+                            },
+                        },
+                        "already_ended": {
+                            "summary": "Already ended",
+                            "value": {
+                                "error": "conflict",
+                                "message": (
+                                    "Cannot transition meeting 847-2910-556 "
+                                    "from ENDED to ENDED."
+                                ),
+                            },
+                        },
+                    }
+                }
+            },
+        },
+    },
+)
+def end_meeting(
+    meeting_code: str,
+    service: MeetingService = Depends(get_meeting_service),
+) -> MeetingResponse:
+    """End an active meeting.
+
+    Args:
+        meeting_code: The meeting's unique, public identifier from the
+            URL path.
+        service: Injected ``MeetingService`` instance.
+
+    Returns:
+        The updated ``MeetingResponse`` with ``status=ENDED`` and
+        ``ended_at`` set.
+
+    Raises:
+        MeetingNotFoundError: Propagated from the service; translated to
+            ``404`` by the global exception handler.
+        InvalidMeetingStatusTransitionError: Propagated from the service;
+            translated to ``409`` by the global exception handler.
+    """
+    meeting = service.transition_status(meeting_code, MeetingStatus.ENDED)
+    return MeetingResponse.model_validate(meeting)
+
+
+# ---------------------------------------------------------------------------
+# GET /meetings/{meeting_code}/status — Get Meeting Status
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{meeting_code}/status",
+    response_model=MeetingStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get current meeting status",
+    description=(
+        "Return the current lifecycle status of a meeting and its "
+        "associated timestamps.\n\n"
+        "Returns a **focused payload** — only `meeting_code`, `status`, "
+        "`started_at`, and `ended_at` — rather than the full meeting "
+        "representation.  Useful for polling current state without "
+        "fetching the entire meeting record.\n\n"
+        "**Status values:**\n"
+        "- `SCHEDULED` — meeting has not yet started.\n"
+        "- `ACTIVE` — meeting is in progress.\n"
+        "- `ENDED` — meeting has finished."
+    ),
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Meeting status returned successfully.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "scheduled": {
+                            "summary": "Scheduled meeting",
+                            "value": {
+                                "meeting_code": "847-2910-556",
+                                "status": "SCHEDULED",
+                                "started_at": None,
+                                "ended_at": None,
+                            },
+                        },
+                        "active": {
+                            "summary": "Active meeting",
+                            "value": {
+                                "meeting_code": "847-2910-556",
+                                "status": "ACTIVE",
+                                "started_at": "2026-08-01T14:02:00Z",
+                                "ended_at": None,
+                            },
+                        },
+                        "ended": {
+                            "summary": "Ended meeting",
+                            "value": {
+                                "meeting_code": "847-2910-556",
+                                "status": "ENDED",
+                                "started_at": "2026-08-01T14:02:00Z",
+                                "ended_at": "2026-08-01T15:05:00Z",
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "No meeting exists with this code.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "not_found",
+                        "message": "Meeting with code 847-2910-556 was not found.",
+                    }
+                }
+            },
+        },
+    },
+)
+def get_meeting_status(
+    meeting_code: str,
+    service: MeetingService = Depends(get_meeting_service),
+) -> MeetingStatusResponse:
+    """Return the current lifecycle status of a meeting.
+
+    Args:
+        meeting_code: The meeting's unique, public identifier from the
+            URL path.
+        service: Injected ``MeetingService`` instance.
+
+    Returns:
+        A ``MeetingStatusResponse`` containing ``meeting_code``,
+        ``status``, ``started_at``, and ``ended_at``.
+
+    Raises:
+        MeetingNotFoundError: Propagated from the service; translated to
+            ``404`` by the global exception handler.
+    """
+    meeting = service.get_meeting_by_code(meeting_code)
+    return MeetingStatusResponse.model_validate(meeting)
 
 
 # ---------------------------------------------------------------------------

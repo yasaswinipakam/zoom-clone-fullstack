@@ -147,3 +147,21 @@ class MeetingListResponse(BaseModel):
 
     items: list[MeetingResponse]
     total: int
+
+
+class MeetingStatusResponse(BaseModel):
+    """Output schema for the ``GET /meetings/{meeting_code}/status`` endpoint.
+
+    Returns only the lifecycle-relevant fields rather than the full
+    ``MeetingResponse`` payload, keeping the status endpoint focused and
+    lightweight.  ``from_attributes=True`` allows construction directly
+    from a ``Meeting`` ORM instance (Constitution Section 7.4).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    meeting_code: str
+    status: MeetingStatus
+    started_at: datetime | None
+    ended_at: datetime | None
+

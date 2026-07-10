@@ -10,6 +10,7 @@ from app.schemas.meeting import (
     MeetingCreate,
     MeetingListResponse,
     MeetingResponse,
+    MeetingStatusResponse,
     MeetingUpdate,
 )
 from app.schemas.participant import (
@@ -25,6 +26,7 @@ __all__ = [
     "MeetingCreate",
     "MeetingListResponse",
     "MeetingResponse",
+    "MeetingStatusResponse",
     "MeetingUpdate",
     "ParticipantBase",
     "ParticipantCreate",
