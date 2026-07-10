@@ -1,0 +1,25 @@
+[project]
+name = "zoom-clone-backend"
+version = "0.1.0"
+description = "FastAPI backend for the Zoom Clone SDE Fullstack Assignment"
+requires-python = ">=3.12"
+readme = "README.md"
+
+# NOTE: Installable dependencies are managed exclusively in requirements.txt
+# (per the Backend Engineering Constitution's DRY principle — Section 4.10).
+# This file only carries project metadata and tool configuration.
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
