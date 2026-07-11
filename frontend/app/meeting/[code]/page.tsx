@@ -13,7 +13,6 @@ import { useParticipants } from "@/hooks/queries/useParticipants";
 import { useEndMeeting } from "@/hooks/mutations/useEndMeeting";
 import { useLeaveMeeting } from "@/hooks/mutations/useLeaveMeeting";
 import { useRemoveParticipant } from "@/hooks/mutations/useRemoveParticipant";
-import { useCurrentUser } from "@/context/CurrentUserContext";
 
 interface MeetingPageProps {
   params: Promise<{ code: string }>;
@@ -117,7 +116,6 @@ function RemoveConfirmDialog({ onConfirm, onCancel, isRemoving }: { onConfirm: (
 export default function MeetingPage({ params }: MeetingPageProps) {
   const { code } = use(params);
   const router = useRouter();
-  const { hostId } = useCurrentUser();
 
   // UI state
   const [isMuted, setIsMuted] = useState(false);
@@ -142,18 +140,17 @@ export default function MeetingPage({ params }: MeetingPageProps) {
     (p) => p.participant_status === "CONNECTED"
   ).length;
 
-  // ── Auth / permissions ───────────────────────────────────────────────────
-  /**
-   * A user is considered "host" if their stored hostId matches the meeting's
-   * host_id. This is the only host gate — all destructive actions check this.
-   */
-  const isHost = !!hostId && !!meeting && meeting.host_id === hostId;
-
   // Retrieve self participant ID saved by useJoinMeeting / useStartMeeting
   const selfParticipantId =
     typeof window !== "undefined"
       ? Number(sessionStorage.getItem(`participant_${code}`)) || undefined
       : undefined;
+
+  // Host capabilities belong to the current meeting participant, not to a
+  // browser-wide user ID. This keeps guests from inheriting host controls.
+  const isHost = participants.some(
+    (participant) => participant.id === selfParticipantId && participant.is_host
+  );
 
   // ── Elapsed timer ────────────────────────────────────────────────────────
   useEffect(() => {

@@ -158,14 +158,13 @@ class MeetingService:
             )
 
         created = self.meeting_repo.create(meeting)
-        if payload.meeting_type == MeetingType.INSTANT:
-            self.participant_repo.create(
-                Participant(
-                    meeting_id=created.id,
-                    display_name=host.name,
-                    is_host=True,
-                )
+        self.participant_repo.create(
+            Participant(
+                meeting_id=created.id,
+                display_name=host.name,
+                is_host=True,
             )
+        )
         self.meeting_repo.db.commit()
         logger.info(
             "Meeting created: code=%s type=%s host_id=%s",
