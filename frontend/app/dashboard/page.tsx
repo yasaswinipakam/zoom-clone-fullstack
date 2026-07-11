@@ -26,21 +26,24 @@ import type { ApiError } from "@/types/api-error";
 
 // ─── Live Clock ───────────────────────────────────────────────────────────────
 function LiveClock() {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+  const timeLabel = now ? format(now, "h:mm a") : "--:--";
+  const dateLabel = now ? format(now, "EEEE, d MMMM") : "";
   return (
     <div className="text-center select-none mb-8">
       <p
         className="text-white leading-none tracking-tight"
         style={{ fontSize: "clamp(48px, 8vw, 68px)", fontWeight: 300, letterSpacing: "-1px" }}
       >
-        {format(now, "h:mm a")}
+        {timeLabel}
       </p>
       <p className="text-[#888888] text-[15px] font-normal mt-2">
-        {format(now, "EEEE, d MMMM")}
+        {dateLabel}
       </p>
     </div>
   );
