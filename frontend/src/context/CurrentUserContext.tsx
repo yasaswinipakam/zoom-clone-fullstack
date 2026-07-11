@@ -1,77 +1,89 @@
-/**
- * CurrentUserProvider — React component only.
- *
- * This file exports EXACTLY ONE thing: the CurrentUserProvider component.
- * The context object lives in CurrentUserContextValue.ts; the hook lives in
- * useCurrentUser.ts. This split satisfies react-refresh/only-export-components
- * without suppressing the rule.
- *
- * No-Auth Identity Strategy (Implementation Plan §5):
- *   - Generates a stable synthetic hostId (default 1, matching the backend seed)
- *     on first load and persists it in localStorage.
- *   - Captures and persists displayName on first use.
- *   - localStorage access is scoped to this context file per Constitution §3.5.
- */
+"use client";
 
-import { useCallback, useEffect, useState } from 'react'
-import {
-  CurrentUserContext,
-  type CurrentUser,
-} from '@/context/CurrentUserContextValue'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
 
-// ---------------------------------------------------------------------------
-// Persistence helpers — localStorage access scoped here per Constitution §3.5
-// ---------------------------------------------------------------------------
+interface CurrentUser {
+  hostId: number;
+  displayName: string;
+}
 
-const STORAGE_KEY = 'zoom_clone_user'
-const DEFAULT_HOST_ID = 1
+interface CurrentUserContextValue extends CurrentUser {
+  setDisplayName: (name: string) => void;
+}
 
-function loadUser(): CurrentUser {
+const CurrentUserContext = createContext<CurrentUserContextValue | null>(null);
+
+const STORAGE_KEY = "zoom_clone_user";
+
+function loadOrCreateUser(): CurrentUser {
+  if (typeof window === "undefined") {
+    return { hostId: 1, displayName: "Host" };
+  }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<CurrentUser>
-      return {
-        hostId: typeof parsed.hostId === 'number' ? parsed.hostId : DEFAULT_HOST_ID,
-        displayName: typeof parsed.displayName === 'string' ? parsed.displayName : null,
+      const parsed = JSON.parse(raw) as Partial<CurrentUser>;
+      if (
+        typeof parsed.hostId === "number" &&
+        typeof parsed.displayName === "string"
+      ) {
+        return { hostId: parsed.hostId, displayName: parsed.displayName };
       }
     }
   } catch {
-    // Corrupt storage — fall through to defaults
+    // ignore parse errors — fall through to create new
   }
-  return { hostId: DEFAULT_HOST_ID, displayName: null }
+  const newUser: CurrentUser = {
+    hostId: Math.floor(Math.random() * 999) + 1,
+    displayName: "Host",
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+  return newUser;
 }
 
-function saveUser(user: CurrentUser): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
-  } catch {
-    // Storage unavailable — non-fatal
-  }
-}
+export function CurrentUserProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [user, setUser] = useState<CurrentUser>({ hostId: 1, displayName: "Host" });
 
-// ---------------------------------------------------------------------------
-// Provider component — the ONLY export from this file
-// ---------------------------------------------------------------------------
-
-interface CurrentUserProviderProps {
-  children: React.ReactNode
-}
-
-export function CurrentUserProvider({ children }: CurrentUserProviderProps) {
-  const [user, setUser] = useState<CurrentUser>(loadUser)
-
+  // Hydrate from localStorage on mount (client-only)
   useEffect(() => {
-    saveUser(user)
-  }, [user])
+    setUser(loadOrCreateUser());
+  }, []);
 
-  const setDisplayName = useCallback((name: string) => {
-    setUser((prev) => ({ ...prev, displayName: name }))
-  }, [])
+  const setDisplayName = (name: string) => {
+    const updated = { ...user, displayName: name };
+    setUser(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    }
+  };
+
+  const value = useMemo<CurrentUserContextValue>(
+    () => ({ ...user, setDisplayName }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user]
+  );
 
   return (
-    <CurrentUserContext.Provider value={{ user, setDisplayName }}>
+    <CurrentUserContext.Provider value={value}>
       {children}
     </CurrentUserContext.Provider>
-  )
+  );
+}
+
+export function useCurrentUser(): CurrentUserContextValue {
+  const ctx = useContext(CurrentUserContext);
+  if (!ctx) {
+    throw new Error("useCurrentUser must be used within <CurrentUserProvider>");
+  }
+  return ctx;
 }

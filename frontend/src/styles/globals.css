@@ -1,111 +1,72 @@
-/**
- * styles/globals.css — global foundation styles + CSS token system.
- *
- * Implementation Plan §11: "Colors (token system, defined once in
- * styles/tokens.css as CSS custom properties, consumed by Tailwind config)."
- *
- * Tailwind v4 is initialised here via @import "tailwindcss".
- * All CSS custom properties (design tokens) are defined here so they are
- * available to both the light dashboard theme and the dark meeting-room
- * theme from a single definition point — never duplicated per-page.
- *
- * Constitution §9.1: arbitrary Tailwind values ([...]) are forbidden in
- * feature components; tokens defined here give them named alternatives.
- */
-
 @import "tailwindcss";
 
-/* ==========================================================================
-   Design tokens — CSS custom properties
-   ========================================================================== */
+/* ───────── Design Tokens ───────── */
+@theme {
+  /* Primary (Zoom Blue) */
+  --color-primary: #2d8cff;
+  --color-primary-600: #1a7ae8;
+  --color-primary-100: #dbeafe;
 
-:root {
-  /* --- Primary --- */
-  --color-primary: #2d8cff;       /* Zoom-like blue — primary actions, links  */
-  --color-primary-hover: #1a7ae8;
+  /* Surface */
+  --color-surface: #ffffff;
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
 
-  /* --- Surfaces --- */
-  --color-surface: #ffffff;           /* Dashboard / light background            */
-  --color-surface-secondary: #f7f8fa; /* Subtle alternate surface (card bg etc.) */
-  --color-surface-dark: #1c1c1e;          /* Meeting-room near-black background      */
-  --color-surface-dark-secondary: #2c2c2e;
+  /* Surface Dark (Meeting Room) */
+  --color-surface-dark: #1c1c1e;
+  --color-surface-dark-100: #2c2c2e;
 
-  /* --- Semantic --- */
-  --color-danger: #e3371e;    /* Leave / end / remove actions             */
-  --color-danger-hover: #c62d17;
-  --color-success: #2eb82e;   /* CONNECTED / ACTIVE status indicators     */
-  --color-warning: #f5a623;   /* DISCONNECTED / reconnecting indicators   */
+  /* Semantic */
+  --color-danger: #e3371e;
+  --color-danger-600: #c62d17;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
 
-  /* --- Neutral scale (both themes pull from these) --- */
-  --color-border: #e5e7eb;
-  --color-border-dark: #3a3a3c;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
-  --color-text-primary-dark: #f2f2f7;
-  --color-text-secondary-dark: #aeaeb2;
+  /* Borders */
+  --color-border-light: #e2e8f0;
+  --color-border-dark: #334155;
 
-  /* --- Spacing base unit: 4 px — see Implementation Plan §11 --- */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-12: 48px;
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  /* --- Typography scale --- */
-  --font-family-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-base: 16px;
-  --font-size-lg: 20px;
-  --font-size-xl: 24px;
-  --font-size-2xl: 32px;
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-elevated: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* Border radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
 }
 
-/* ==========================================================================
-   Base resets
-   ========================================================================== */
-
+/* ───────── Base Reset ───────── */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+  overflow-y: scroll;
+}
+
 body {
   margin: 0;
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-base);
-  background-color: var(--color-surface);
-  color: var(--color-text-primary);
+  font-family: var(--font-inter, var(--font-sans));
+  font-size: 1rem;
+  line-height: 1.5;
+  background-color: #ffffff;
+  color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ==========================================================================
-   Focus management — Constitution §4.5, §12.1
-   Every interactive element must have a visible focus state.
-   ========================================================================== */
-
+/* ───────── Global Focus Ring ───────── */
 *:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid #2d8cff;
   outline-offset: 2px;
-  border-radius: 2px;
-}
-
-/* ==========================================================================
-   Reduced motion — Constitution §12.5
-   Respected at the token level so every animation inherits it automatically.
-   ========================================================================== */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+  border-radius: 4px;
 }

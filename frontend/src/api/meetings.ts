@@ -1,56 +1,138 @@
-/**
- * Meetings API module.
- *
- * Constitution §6.4: only api/client.ts imports axios; this module
- * imports apiClient from there.
- * Constitution §6.2: api/ may import from types/ only.
- *
- * Every function maps 1:1 to a backend endpoint (Implementation Plan §9).
- */
+import { apiClient } from "@/api/client";
+import type { Meeting, MeetingCreate } from "@/types/meeting";
+import type { Participant, ParticipantCreate } from "@/types/participant";
 
-import { apiClient } from '@/api/client'
-import type { MeetingCreate, MeetingListResponse, MeetingResponse, MeetingStatusResponse, MeetingUpdate } from '@/types/meeting'
+// ─── Meeting Queries ───────────────────────────────────────────────
 
-const BASE = '/api/v1/meetings'
+export async function fetchUpcomingMeetings(
+  hostId?: number,
+  limit = 10
+): Promise<Meeting[]> {
+  const params: Record<string, string | number> = { limit };
+  if (hostId !== undefined) params.host_id = hostId;
+  const { data } = await apiClient.get<Meeting[]>("/api/v1/meetings/upcoming", {
+    params,
+  });
+  return data;
+}
 
-export const meetingsApi = {
-  /** POST /api/v1/meetings */
-  createMeeting: (payload: MeetingCreate): Promise<MeetingResponse> =>
-    apiClient.post<MeetingResponse>(BASE, payload).then((r) => r.data),
+export async function fetchRecentMeetings(
+  hostId?: number,
+  limit = 10
+): Promise<Meeting[]> {
+  const params: Record<string, string | number> = { limit };
+  if (hostId !== undefined) params.host_id = hostId;
+  const { data } = await apiClient.get<Meeting[]>("/api/v1/meetings/recent", {
+    params,
+  });
+  return data;
+}
 
-  /** GET /api/v1/meetings/upcoming */
-  listUpcoming: (params?: { host_id?: number; limit?: number }): Promise<MeetingListResponse> =>
-    apiClient.get<MeetingListResponse>(`${BASE}/upcoming`, { params }).then((r) => r.data),
+export async function getMeetingById(meetingId: number): Promise<Meeting> {
+  const { data } = await apiClient.get<Meeting>(
+    `/api/v1/meetings/${meetingId}`
+  );
+  return data;
+}
 
-  /** GET /api/v1/meetings/recent */
-  listRecent: (params?: { host_id?: number; limit?: number }): Promise<MeetingListResponse> =>
-    apiClient.get<MeetingListResponse>(`${BASE}/recent`, { params }).then((r) => r.data),
+export async function getMeetingByCode(code: string): Promise<Meeting> {
+  const { data } = await apiClient.get<Meeting>(
+    `/api/v1/meetings/code/${code}`
+  );
+  return data;
+}
 
-  /** GET /api/v1/meetings/{meeting_id} */
-  getMeetingById: (id: number): Promise<MeetingResponse> =>
-    apiClient.get<MeetingResponse>(`${BASE}/${id}`).then((r) => r.data),
+export interface MeetingStatusResponse {
+  meeting_code: string;
+  status: string;
+  participant_count: number;
+}
 
-  /** GET /api/v1/meetings/code/{meeting_code} */
-  getMeetingByCode: (code: string): Promise<MeetingResponse> =>
-    apiClient.get<MeetingResponse>(`${BASE}/code/${code}`).then((r) => r.data),
+export async function getMeetingStatus(
+  code: string
+): Promise<MeetingStatusResponse> {
+  const { data } = await apiClient.get<MeetingStatusResponse>(
+    `/api/v1/meetings/${code}/status`
+  );
+  return data;
+}
 
-  /** PATCH /api/v1/meetings/{meeting_id} */
-  updateMeeting: (id: number, payload: MeetingUpdate): Promise<MeetingResponse> =>
-    apiClient.patch<MeetingResponse>(`${BASE}/${id}`, payload).then((r) => r.data),
+// ─── Meeting Mutations ─────────────────────────────────────────────
 
-  /** DELETE /api/v1/meetings/{meeting_id} — returns 204 No Content */
-  deleteMeeting: (id: number): Promise<void> =>
-    apiClient.delete(`${BASE}/${id}`).then(() => undefined),
+export async function createMeeting(payload: MeetingCreate): Promise<Meeting> {
+  const { data } = await apiClient.post<Meeting>("/api/v1/meetings", payload);
+  return data;
+}
 
-  /** POST /api/v1/meetings/{meeting_code}/start */
-  startMeeting: (code: string): Promise<MeetingResponse> =>
-    apiClient.post<MeetingResponse>(`${BASE}/${code}/start`).then((r) => r.data),
+export async function updateMeeting(
+  meetingId: number,
+  payload: Partial<Pick<Meeting, "title" | "description" | "status">>
+): Promise<Meeting> {
+  const { data } = await apiClient.patch<Meeting>(
+    `/api/v1/meetings/${meetingId}`,
+    payload
+  );
+  return data;
+}
 
-  /** POST /api/v1/meetings/{meeting_code}/end */
-  endMeeting: (code: string): Promise<MeetingResponse> =>
-    apiClient.post<MeetingResponse>(`${BASE}/${code}/end`).then((r) => r.data),
+export async function deleteMeeting(meetingId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/meetings/${meetingId}`);
+}
 
-  /** GET /api/v1/meetings/{meeting_code}/status */
-  getStatus: (code: string): Promise<MeetingStatusResponse> =>
-    apiClient.get<MeetingStatusResponse>(`${BASE}/${code}/status`).then((r) => r.data),
+export async function startMeeting(code: string): Promise<Meeting> {
+  const { data } = await apiClient.post<Meeting>(
+    `/api/v1/meetings/${code}/start`
+  );
+  return data;
+}
+
+export async function endMeeting(code: string): Promise<Meeting> {
+  const { data } = await apiClient.post<Meeting>(
+    `/api/v1/meetings/${code}/end`
+  );
+  return data;
+}
+
+// ─── Participant Mutations ─────────────────────────────────────────
+
+export async function joinMeeting(
+  code: string,
+  payload: ParticipantCreate
+): Promise<Participant> {
+  const { data } = await apiClient.post<Participant>(
+    `/api/v1/meetings/${code}/participants`,
+    payload
+  );
+  return data;
+}
+
+export async function fetchParticipants(
+  code: string,
+  status?: string
+): Promise<Participant[]> {
+  const params: Record<string, string> = {};
+  if (status) params.status = status;
+  const { data } = await apiClient.get<Participant[]>(
+    `/api/v1/meetings/${code}/participants`,
+    { params }
+  );
+  return data;
+}
+
+export async function leaveMeeting(
+  code: string,
+  participantId: number
+): Promise<void> {
+  await apiClient.post(
+    `/api/v1/meetings/${code}/participants/${participantId}/leave`
+  );
+}
+
+export async function removeParticipant(
+  code: string,
+  participantId: number
+): Promise<void> {
+  await apiClient.delete(
+    `/api/v1/meetings/${code}/participants/${participantId}`
+  );
 }
