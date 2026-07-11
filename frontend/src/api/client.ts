@@ -12,6 +12,14 @@ export const apiClient = axios.create({
   timeout: 10_000,
 });
 
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("zoom_clone_access_token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // Normalize all error responses to { error, message } shape
 apiClient.interceptors.response.use(
   (response) => response,

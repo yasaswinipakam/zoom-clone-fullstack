@@ -17,11 +17,11 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.constants import API_V1_PREFIX, SERVICE_NAME
-from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.core.exceptions import AuthenticationError, ConflictError, NotFoundError, ValidationError
 from app.core.logger import get_logger
 from app.core.logging_config import configure_logging
 from app.core.middleware import RequestContextMiddleware
-from app.routers import meeting_router, participant_router
+from app.routers import auth_router, meeting_router, participant_router
 
 # Configured at import time — before the module-level `logger` below is
 # even created, and before FastAPI or any other module in this process
@@ -156,9 +156,17 @@ async def handle_validation_error(
     Returns:
         A 422 response with the default FastAPI error detail structure.
     """
+    errors = []
+    for error in exc.errors():
+        sanitized = dict(error)
+        if "ctx" in sanitized:
+            sanitized["ctx"] = {
+                key: str(value) for key, value in sanitized["ctx"].items()
+            }
+        errors.append(sanitized)
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"error": "validation_error", "message": exc.errors()},
+        content={"error": "validation_error", "message": errors},
     )
 
 
@@ -207,6 +215,18 @@ async def handle_not_found_error(request: Request, exc: NotFoundError) -> JSONRe
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={"error": "not_found", "message": str(exc)},
+    )
+
+
+@app.exception_handler(AuthenticationError)
+async def handle_authentication_error(
+    request: Request, exc: AuthenticationError
+) -> JSONResponse:
+    """Map authentication failures to a consistent 401 response."""
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"error": "unauthorized", "message": str(exc)},
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 
@@ -260,6 +280,8 @@ async def handle_domain_validation_error(
 # remain free of try/except blocks.
 app.include_router(meeting_router, prefix=API_V1_PREFIX)
 app.include_router(participant_router, prefix=API_V1_PREFIX)
+if settings.auth_enabled:
+    app.include_router(auth_router, prefix=API_V1_PREFIX)
 
 
 # --- Health endpoint -------------------------------------------------------
@@ -344,4 +366,3 @@ def health_check() -> dict[str, str]:
         "environment": settings.environment,
         "db_status": db_status,
     }
-

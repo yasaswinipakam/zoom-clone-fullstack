@@ -10,6 +10,7 @@ Section 3.2.
 from app.models.enums import MeetingStatus, MeetingType, ParticipantStatus
 from app.models.meeting import Meeting
 from app.models.participant import Participant
+from app.models.user import User  # needed to resolve meetings.host_id FK
 
 __all__ = [
     "Meeting",
@@ -17,4 +18,5 @@ __all__ = [
     "MeetingType",
     "Participant",
     "ParticipantStatus",
+    "User",
 ]

@@ -24,7 +24,10 @@ from app.core.exceptions import (
 )
 from app.models.enums import MeetingStatus, MeetingType
 from app.models.meeting import Meeting
+from app.models.participant import Participant
 from app.repositories.meeting_repository import MeetingRepository
+from app.repositories.participant_repository import ParticipantRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.meeting import MeetingCreate, MeetingUpdate
 
 logger = logging.getLogger(__name__)
@@ -57,13 +60,21 @@ def _generate_candidate_code() -> str:
 class MeetingService:
     """Business logic for creating, retrieving, and transitioning meetings."""
 
-    def __init__(self, meeting_repo: MeetingRepository) -> None:
+    def __init__(
+        self,
+        meeting_repo: MeetingRepository,
+        user_repo: UserRepository,
+        participant_repo: ParticipantRepository,
+    ) -> None:
         """Initialize the service with its repository dependency.
 
         Args:
             meeting_repo: Data-access layer for the Meeting aggregate.
+            user_repo: Data-access layer used to validate meeting ownership.
         """
         self.meeting_repo = meeting_repo
+        self.user_repo = user_repo
+        self.participant_repo = participant_repo
 
     def _generate_unique_meeting_code(self) -> str:
         """Generate a meeting code guaranteed unique at creation time.
@@ -111,6 +122,10 @@ class MeetingService:
                 defense-in-depth per Constitution Section 16.1, even
                 though the schema already validated it).
         """
+        host = self.user_repo.get_by_id(payload.host_id)
+        if host is None:
+            raise MeetingNotFoundError(f"Host user with ID {payload.host_id} was not found.")
+
         meeting_code = self._generate_unique_meeting_code()
 
         if payload.meeting_type == MeetingType.INSTANT:
@@ -143,6 +158,14 @@ class MeetingService:
             )
 
         created = self.meeting_repo.create(meeting)
+        if payload.meeting_type == MeetingType.INSTANT:
+            self.participant_repo.create(
+                Participant(
+                    meeting_id=created.id,
+                    display_name=host.name,
+                    is_host=True,
+                )
+            )
         self.meeting_repo.db.commit()
         logger.info(
             "Meeting created: code=%s type=%s host_id=%s",

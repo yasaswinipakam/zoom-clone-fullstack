@@ -110,7 +110,9 @@ at `data/zoom_clone.db`).  Key variables:
 | `ENVIRONMENT` | `local` | Deployment environment label |
 | `DEBUG` | `false` | Enable debug behaviour |
 | `LOG_LEVEL` | `INFO` | Root log level |
-| `CORS_ALLOW_ORIGINS` | `["http://localhost:3000"]` | Allowed browser origins |
+| `CORS_ALLOW_ORIGINS` | `["http://localhost:3000", "http://127.0.0.1:3000"]` | Allowed browser origins |
+| `AUTH_ENABLED` | `true` | Mount optional authentication endpoints |
+| `JWT_SECRET_KEY` | development-only default | Replace before deployment |
 
 ### 5. Create the database schema
 
@@ -197,6 +199,14 @@ All resource routes are prefixed `/api/v1`.
 | POST | `/api/v1/meetings/{code}/participants/{id}/leave` | Voluntary leave (soft-remove) |
 | DELETE | `/api/v1/meetings/{code}/participants/{id}` | Hard-remove a participant |
 
+### Optional Authentication (bonus)
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/v1/auth/signup` | Create a bcrypt-hashed local account and return JWT |
+| POST | `/api/v1/auth/login` | Authenticate and return JWT |
+| GET | `/api/v1/auth/me` | Validate bearer token and return current user |
+
 ### Meeting Lifecycle
 
 ```
@@ -265,18 +275,17 @@ Router  →  Service  →  Repository  →  Model / ORM
 | `meeting_code` not `id` in participant URLs | Avoids exposing internal PKs in invite links |
 | Soft-delete for participant leave | Preserves join/leave history; hard-delete available for host ejection |
 | `ParticipantStatus` independent of `MeetingStatus` | A participant can leave and rejoin while the meeting remains ACTIVE |
-| `host_id` in request body | Authentication deferred to a future milestone; clearly documented for interview |
+| `host_id` in request body | Preserves the assignment's no-login fallback; the optional auth UI supplies its authenticated user ID |
 | Forward-only lifecycle graph (`dict[MeetingStatus, frozenset]`) | Enforced in exactly one place; O(1) lookup |
 
 ---
 
 ## Assumptions
 
-- **No authentication**: per the Assignment Specification's scope. A
-  `host_id` body field is accepted as a proxy for the current user until
-  the auth milestone lands.
-- **Default host user (`id=1`)**: seeded by `scripts/seed.py` because
-  `meetings.host_id` is a non-nullable FK. The full `User` ORM model
-  belongs to a future milestone; the seed inserts a minimal raw SQL row.
+- **Authentication is optional**: assignment flows keep working with the
+  seeded host (`id=1`). When enabled, signup/login returns a JWT and the
+  frontend uses the authenticated user ID as `host_id`.
+- **Migrations**: `0001_initial_schema` creates the normalized tables and
+  indexes; `0002_add_user_password_hash` safely enables the auth bonus.
 - **SQLite for development**: production-equivalent with PostgreSQL via a
   one-line `DATABASE_URL` change.

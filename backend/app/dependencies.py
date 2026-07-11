@@ -18,6 +18,8 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db as _get_db
 from app.repositories.meeting_repository import MeetingRepository
 from app.repositories.participant_repository import ParticipantRepository
+from app.repositories.user_repository import UserRepository
+from app.services.auth_service import AuthService
 from app.services.meeting_service import MeetingService
 from app.services.participant_service import ParticipantService
 
@@ -54,7 +56,11 @@ def get_meeting_service(
     Returns:
         A ``MeetingService`` bound to the current session.
     """
-    return MeetingService(meeting_repo=MeetingRepository(db=db))
+    return MeetingService(
+        meeting_repo=MeetingRepository(db=db),
+        user_repo=UserRepository(db=db),
+        participant_repo=ParticipantRepository(db=db),
+    )
 
 
 def get_participant_service(
@@ -79,3 +85,8 @@ def get_participant_service(
         participant_repo=ParticipantRepository(db=db),
         meeting_repo=MeetingRepository(db=db),
     )
+
+
+def get_auth_service(db: Session = Depends(get_db_session)) -> AuthService:
+    """Provide the optional authentication service for the request."""
+    return AuthService(user_repo=UserRepository(db=db))

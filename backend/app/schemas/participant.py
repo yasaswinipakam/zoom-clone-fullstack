@@ -8,7 +8,7 @@ owns validation only; it never touches the database or business rules.
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import ParticipantStatus
 
@@ -27,6 +27,15 @@ class ParticipantBase(BaseModel):
         max_length=100,
         description="Name displayed in the participant grid at join time.",
     )
+
+    @field_validator("display_name")
+    @classmethod
+    def normalize_display_name(cls, value: str) -> str:
+        """Store display names without leading/trailing whitespace."""
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("display_name must contain non-whitespace characters")
+        return normalized
 
 
 class ParticipantCreate(ParticipantBase):

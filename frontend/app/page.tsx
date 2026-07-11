@@ -1,20 +1,6 @@
-import React from "react";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { HeroSection } from "@/components/landing/HeroSection";
-import { FeaturesSection } from "@/components/landing/FeaturesSection";
-import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
+import { redirect } from "next/navigation";
 
+// Zoom's app goes straight to the home/dashboard — no marketing landing page
 export default function Home() {
-  return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className="flex-1">
-        <HeroSection />
-        <FeaturesSection />
-        <HowItWorksSection />
-      </main>
-      <Footer />
-    </div>
-  );
+  redirect("/dashboard");
 }

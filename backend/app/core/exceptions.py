@@ -32,6 +32,10 @@ class ValidationError(DomainError):
     """Business-rule validation failure (distinct from Pydantic validation)."""
 
 
+class AuthenticationError(DomainError):
+    """Credentials or bearer token are missing, invalid, or expired."""
+
+
 class MeetingNotFoundError(NotFoundError):
     """Raised when a meeting cannot be found by ID or meeting code."""
 
@@ -68,4 +72,3 @@ class DuplicateParticipantError(ConflictError):
 class MeetingNotJoinableError(ConflictError):
     """Raised when a participant attempts to join a meeting that has
     already ended (``MeetingStatus.ENDED``)."""
-

@@ -4,12 +4,15 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Calendar, Copy, Check, Play, LogIn } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { Card, CardContent, CardFooter, Badge, Button } from "@/components/ui";
+import { Badge, Button } from "@/components/ui";
 import { useStartMeeting } from "@/hooks/mutations/useStartMeeting";
 import type { Meeting } from "@/types/meeting";
+import clsx from "clsx";
 
 interface MeetingCardProps {
   meeting: Meeting;
+  /** When true, renders in dark mode for the Zoom-style calendar panel */
+  dark?: boolean;
 }
 
 function StatusBadge({ status }: { status: Meeting["status"] }) {
@@ -23,9 +26,7 @@ function StatusBadge({ status }: { status: Meeting["status"] }) {
     ACTIVE: "Live",
     ENDED: "Ended",
   };
-  return (
-    <Badge variant={variantMap[status]}>{labelMap[status]}</Badge>
-  );
+  return <Badge variant={variantMap[status]}>{labelMap[status]}</Badge>;
 }
 
 function formatMeetingDate(isoString?: string): string {
@@ -37,7 +38,10 @@ function formatMeetingDate(isoString?: string): string {
   }
 }
 
-export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting }) => {
+export const MeetingCard: React.FC<MeetingCardProps> = ({
+  meeting,
+  dark = false,
+}) => {
   const [copied, setCopied] = useState(false);
   const { mutate: startMeeting, isPending: isStarting } = useStartMeeting();
 
@@ -47,7 +51,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting }) => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // clipboard not available (e.g. insecure context) — silent fail
+      // clipboard unavailable — silent fail
     }
   };
 
@@ -58,9 +62,91 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting }) => {
       ? formatMeetingDate(meeting.scheduled_at)
       : `Created ${formatMeetingDate(meeting.created_at)}`;
 
+  /* ── Dark variant (Zoom calendar panel) ── */
+  if (dark) {
+    return (
+      <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[#2a2a2a] border border-[#383838] hover:border-[#555555] transition-colors">
+        {/* Left: color indicator */}
+        <div
+          className={clsx(
+            "w-1 self-stretch rounded-full flex-shrink-0",
+            meeting.status === "ACTIVE"
+              ? "bg-green-500"
+              : meeting.status === "SCHEDULED"
+              ? "bg-[#0b5cff]"
+              : "bg-[#555555]"
+          )}
+          aria-hidden="true"
+        />
+
+        {/* Center: info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-[#e8e8e8] truncate">
+            {meeting.title ?? "Untitled Meeting"}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <Calendar className="w-3 h-3 text-[#888888] flex-shrink-0" aria-hidden="true" />
+            <span className="text-xs text-[#888888] truncate">{dateLabel}</span>
+          </div>
+        </div>
+
+        {/* Right: badge + copy + action */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <StatusBadge status={meeting.status} />
+
+          <button
+            onClick={handleCopy}
+            className="p-1 rounded text-[#888888] hover:text-[#cccccc] hover:bg-[#333333] transition-colors focus-visible:outline-2 focus-visible:outline-[#0b5cff]"
+            aria-label="Copy meeting code"
+            title={copied ? "Copied!" : "Copy code"}
+          >
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-green-400" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {meeting.status === "SCHEDULED" && (
+            <Button
+              variant="primary"
+              size="sm"
+              isLoading={isStarting}
+              onClick={() => startMeeting(meeting.meeting_code)}
+              id={`start-meeting-${meeting.id}`}
+              className="!py-1 !px-2 !text-xs"
+            >
+              <Play className="w-3 h-3" aria-hidden="true" />
+              Start
+            </Button>
+          )}
+
+          {meeting.status === "ACTIVE" && (
+            <Link href={`/meeting/${meeting.meeting_code}`} tabIndex={-1}>
+              <Button
+                variant="primary"
+                size="sm"
+                id={`join-meeting-${meeting.id}`}
+                className="!py-1 !px-2 !text-xs"
+              >
+                <LogIn className="w-3 h-3" aria-hidden="true" />
+                Join
+              </Button>
+            </Link>
+          )}
+
+          {meeting.status === "ENDED" && (
+            <span className="text-xs text-[#555555] px-1">Ended</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Light variant (white dashboard card grid) ── */
   return (
-    <Card className="flex flex-col justify-between gap-4 hover:shadow-elevated transition-shadow">
-      <CardContent className="p-0 flex flex-col gap-2">
+    <div className="flex flex-col justify-between gap-4 p-4 rounded-lg bg-white border border-[#e2e8f0] shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex flex-col gap-2">
         {/* Status + code row */}
         <div className="flex items-center justify-between gap-2">
           <StatusBadge status={meeting.status} />
@@ -89,9 +175,10 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting }) => {
           <Calendar className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
           <span>{dateLabel}</span>
         </div>
-      </CardContent>
+      </div>
 
-      <CardFooter className="p-0 border-0 mt-0 pt-3 border-t border-[#e2e8f0] justify-start gap-2">
+      {/* Actions */}
+      <div className="flex items-center gap-2 pt-3 border-t border-[#e2e8f0]">
         {meeting.status === "SCHEDULED" && (
           <Button
             variant="primary"
@@ -104,26 +191,20 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting }) => {
             Start
           </Button>
         )}
-
         {meeting.status === "ACTIVE" && (
           <Link href={`/meeting/${meeting.meeting_code}`} tabIndex={-1}>
-            <Button
-              variant="primary"
-              size="sm"
-              id={`join-meeting-${meeting.id}`}
-            >
+            <Button variant="primary" size="sm" id={`join-meeting-${meeting.id}`}>
               <LogIn className="w-3.5 h-3.5" aria-hidden="true" />
               Join
             </Button>
           </Link>
         )}
-
         {meeting.status === "ENDED" && (
           <Button variant="ghost" size="sm" disabled id={`ended-meeting-${meeting.id}`}>
             Ended
           </Button>
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 };

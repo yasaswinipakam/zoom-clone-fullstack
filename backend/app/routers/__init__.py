@@ -8,5 +8,6 @@ directly.
 
 from app.routers.meeting_router import router as meeting_router
 from app.routers.participant_router import router as participant_router
+from app.routers.auth_router import router as auth_router
 
 __all__ = ["meeting_router", "participant_router"]

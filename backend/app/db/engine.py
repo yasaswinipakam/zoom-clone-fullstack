@@ -7,7 +7,7 @@ one place, per Constitution Section 1.2 ("Maintainability").
 
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, event
 
 from app.core.config import settings
 
@@ -34,3 +34,12 @@ engine: Engine = create_engine(
     settings.database_url,
     connect_args=_connect_args,
 )
+
+
+if _is_sqlite:
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+        """Enforce declared foreign keys and cascade rules on every SQLite connection."""
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()

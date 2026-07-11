@@ -8,7 +8,11 @@ sensible defaults for local development. No other module may read
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_DEVELOPMENT_JWT_SECRET = "change-this-local-development-secret-before-deployment"
 
 
 class Settings(BaseSettings):
@@ -34,9 +38,17 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/zoom_clone.db"
 
-    cors_allow_origins: list[str] = ["http://localhost:3000"]
+    cors_allow_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     log_level: str = "INFO"
+
+    auth_enabled: bool = True
+    jwt_secret_key: str = _DEVELOPMENT_JWT_SECRET
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24 * 7
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -44,6 +56,17 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def reject_development_secret_in_production(self) -> "Settings":
+        """Prevent the committed local fallback from being used in production."""
+        if (
+            self.auth_enabled
+            and self.environment.lower() == "production"
+            and self.jwt_secret_key == _DEVELOPMENT_JWT_SECRET
+        ):
+            raise ValueError("JWT_SECRET_KEY must be set to a unique production secret")
+        return self
 
 
 @lru_cache

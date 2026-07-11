@@ -2,6 +2,11 @@ import { apiClient } from "@/api/client";
 import type { Meeting, MeetingCreate } from "@/types/meeting";
 import type { Participant, ParticipantCreate } from "@/types/participant";
 
+interface ListResponse<T> {
+  items: T[];
+  total: number;
+}
+
 // ─── Meeting Queries ───────────────────────────────────────────────
 
 export async function fetchUpcomingMeetings(
@@ -10,10 +15,10 @@ export async function fetchUpcomingMeetings(
 ): Promise<Meeting[]> {
   const params: Record<string, string | number> = { limit };
   if (hostId !== undefined) params.host_id = hostId;
-  const { data } = await apiClient.get<Meeting[]>("/api/v1/meetings/upcoming", {
+  const { data } = await apiClient.get<ListResponse<Meeting>>("/api/v1/meetings/upcoming", {
     params,
   });
-  return data;
+  return data.items;
 }
 
 export async function fetchRecentMeetings(
@@ -22,10 +27,10 @@ export async function fetchRecentMeetings(
 ): Promise<Meeting[]> {
   const params: Record<string, string | number> = { limit };
   if (hostId !== undefined) params.host_id = hostId;
-  const { data } = await apiClient.get<Meeting[]>("/api/v1/meetings/recent", {
+  const { data } = await apiClient.get<ListResponse<Meeting>>("/api/v1/meetings/recent", {
     params,
   });
-  return data;
+  return data.items;
 }
 
 export async function getMeetingById(meetingId: number): Promise<Meeting> {
@@ -112,11 +117,11 @@ export async function fetchParticipants(
 ): Promise<Participant[]> {
   const params: Record<string, string> = {};
   if (status) params.status = status;
-  const { data } = await apiClient.get<Participant[]>(
+  const { data } = await apiClient.get<ListResponse<Participant>>(
     `/api/v1/meetings/${code}/participants`,
     { params }
   );
-  return data;
+  return data.items;
 }
 
 export async function leaveMeeting(

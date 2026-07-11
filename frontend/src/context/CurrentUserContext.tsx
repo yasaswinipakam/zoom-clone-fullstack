@@ -15,6 +15,7 @@ interface CurrentUser {
 
 interface CurrentUserContextValue extends CurrentUser {
   setDisplayName: (name: string) => void;
+  signIn: (user: CurrentUser) => void;
 }
 
 const CurrentUserContext = createContext<CurrentUserContextValue | null>(null);
@@ -39,10 +40,9 @@ function loadOrCreateUser(): CurrentUser {
   } catch {
     // ignore parse errors — fall through to create new
   }
-  const newUser: CurrentUser = {
-    hostId: Math.floor(Math.random() * 999) + 1,
-    displayName: "Host",
-  };
+  // The seed script creates this default host. Authentication can replace it
+  // with a real account, but the assignment's no-login flow stays reliable.
+  const newUser: CurrentUser = { hostId: 1, displayName: "Host" };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
   return newUser;
 }
@@ -67,8 +67,15 @@ export function CurrentUserProvider({
     }
   };
 
+  const signIn = (authenticatedUser: CurrentUser) => {
+    setUser(authenticatedUser);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));
+    }
+  };
+
   const value = useMemo<CurrentUserContextValue>(
-    () => ({ ...user, setDisplayName }),
+    () => ({ ...user, setDisplayName, signIn }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [user]
   );

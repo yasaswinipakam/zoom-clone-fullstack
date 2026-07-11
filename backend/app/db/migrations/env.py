@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).resolve().parents[3]))
 
 from app.core.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
+import app.models  # noqa: F401, E402  # Register all ORM tables for Alembic.
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
